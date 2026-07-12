@@ -58,6 +58,25 @@ button — tracking is on by default; click it to toggle off per-email. Send
 normally. The popup shows every tracked email with its open/click status, and
 matching threads get inline ✓ / ✓✓ badges in the Gmail list view.
 
+## 4. Web dashboard
+
+`https://<your-worker>.workers.dev/dashboard` is a password-protected page
+showing every tracked email with stats (open rate, total clicks) — useful for
+checking status from any device, not just the browser with the extension.
+
+Set the login password once (pick your own, or generate a strong random one):
+
+```
+cd server
+npx wrangler secret put DASHBOARD_PASSWORD
+npx wrangler secret put SESSION_SECRET   # any random string; internal session-signing key, never typed by you
+```
+
+Login issues an HTTP-only, `SameSite=Strict` session cookie (HMAC-signed, 30
+day expiry) — there's no separate user system, this dashboard is meant for a
+single owner. Log out from the button in the dashboard header, which clears
+the cookie immediately.
+
 ## Known limitations
 
 - **Gmail's image proxy caches the tracking pixel.** Gmail routes external
