@@ -108,12 +108,64 @@ function handleSend(dialog: HTMLElement, body: HTMLElement): void {
   );
 }
 
+const BARE_URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
+
+function trackingUrl(baseUrl: string, trackingId: string, original: string): string {
+  return `${baseUrl}/c/${trackingId}?u=${encodeURIComponent(original)}`;
+}
+
 function rewriteLinks(body: HTMLElement, trackingId: string, baseUrl: string): void {
+  // Case 1: Gmail already auto-linkified the URL into a real <a href>.
   body.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((anchor) => {
     const original = anchor.href;
     if (!original.startsWith("http://") && !original.startsWith("https://")) return;
-    anchor.href = `${baseUrl}/c/${trackingId}?u=${encodeURIComponent(original)}`;
+    anchor.href = trackingUrl(baseUrl, trackingId, original);
   });
+
+  // Case 2: Gmail only auto-linkifies on triggers like space/newline/blur, so
+  // a pasted URL sent immediately can still be plain text at this point.
+  // Wrap any remaining bare URLs ourselves so they don't slip out untracked.
+  wrapBareUrls(body, trackingId, baseUrl);
+}
+
+function wrapBareUrls(root: HTMLElement, trackingId: string, baseUrl: string): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (node.parentElement?.closest("a")) return NodeFilter.FILTER_REJECT;
+      // Fresh non-global regex per check: BARE_URL_PATTERN is a shared `g`
+      // regex reused below in matchAll(), and calling .test() on a shared
+      // global regex mutates its lastIndex, which would corrupt later calls.
+      return /https?:\/\//.test(node.textContent ?? "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    },
+  });
+
+  const textNodes: Text[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    textNodes.push(node as Text);
+  }
+
+  for (const textNode of textNodes) {
+    const text = textNode.textContent ?? "";
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0;
+
+    for (const match of text.matchAll(BARE_URL_PATTERN)) {
+      const url = match[0];
+      const index = match.index ?? 0;
+      if (index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, index)));
+
+      const anchor = document.createElement("a");
+      anchor.href = trackingUrl(baseUrl, trackingId, url);
+      anchor.textContent = url;
+      frag.appendChild(anchor);
+
+      lastIndex = index + url.length;
+    }
+    if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+
+    textNode.parentNode?.replaceChild(frag, textNode);
+  }
 }
 
 function appendPixel(body: HTMLElement, trackingId: string, baseUrl: string): void {
