@@ -4,7 +4,7 @@ import { coarsenIp } from "../lib/auth";
 
 export const clickRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// GET /c/:trackingId?u=<encoded original url> — logs a click, then redirects.
+// GET /c/:trackingId?u=<encoded original url> - logs a click, then redirects.
 clickRoute.get("/:trackingId", async (c) => {
   const trackingId = c.req.param("trackingId");
   const rawUrl = c.req.query("u");

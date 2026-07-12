@@ -5,7 +5,7 @@ import { transparentPngBytes } from "../lib/pixel";
 
 export const pixelRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// GET /p/:trackingId.png — logs an open event, always returns the pixel
+// GET /p/:trackingId.png - logs an open event, always returns the pixel
 // regardless of whether the trackingId is known (never leak tracking state
 // to the response, and never fail the image load in the recipient's client).
 pixelRoute.get("/:trackingIdPng", async (c) => {
