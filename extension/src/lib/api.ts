@@ -15,7 +15,9 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
 export async function registerEmail(payload: {
   trackingId: string;
   subject: string;
+  sender: string;
   recipients: string;
+  isReply: boolean;
 }): Promise<void> {
   const res = await authedFetch("/api/emails", {
     method: "POST",

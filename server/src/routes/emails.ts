@@ -11,7 +11,9 @@ emailsRoute.post("/", async (c) => {
   const body = await c.req.json<{
     trackingId?: string;
     subject?: string;
+    sender?: string;
     recipients?: string;
+    isReply?: boolean;
   }>();
 
   if (!body.trackingId || !body.subject || !body.recipients) {
@@ -22,11 +24,11 @@ emailsRoute.post("/", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `INSERT INTO emails (user_id, tracking_id, subject, recipients)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO emails (user_id, tracking_id, subject, sender, recipients, is_reply)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(tracking_id) DO NOTHING`,
   )
-    .bind(userId, body.trackingId, body.subject, body.recipients)
+    .bind(userId, body.trackingId, body.subject, body.sender ?? "", body.recipients, body.isReply ? 1 : 0)
     .run();
 
   return c.json({ ok: true, trackingId: body.trackingId }, 201);
@@ -39,7 +41,9 @@ emailsRoute.get("/", async (c) => {
     `SELECT
        e.tracking_id AS trackingId,
        e.subject AS subject,
+       e.sender AS sender,
        e.recipients AS recipients,
+       e.is_reply AS isReply,
        e.sent_at AS sentAt,
        (SELECT COUNT(*) FROM opens o WHERE o.email_id = e.id) AS openCount,
        (SELECT MAX(o.opened_at) FROM opens o WHERE o.email_id = e.id) AS lastOpenedAt,

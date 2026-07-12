@@ -83,7 +83,7 @@ ${SHARED_STYLE}
   <div class="stats" id="stats"></div>
   <table id="table" style="display:none">
     <thead>
-      <tr><th>Subject</th><th>Recipients</th><th>Sent</th><th>Status</th><th>Clicks</th></tr>
+      <tr><th>Subject</th><th>From</th><th>Recipients</th><th>Sent</th><th>Status</th><th>Clicks</th></tr>
     </thead>
     <tbody id="rows"></tbody>
   </table>
@@ -116,9 +116,11 @@ ${SHARED_STYLE}
           const status = opened
             ? '<span class="opened">✓✓ Opened ' + e.openCount + 'x</span>'
             : '<span class="unopened">✓ Not opened</span>';
+          const recipients = escapeHtml(e.recipients) + (e.isReply ? ' <span style="opacity:0.6">(reply)</span>' : '');
           return '<tr>' +
             '<td>' + escapeHtml(e.subject) + '</td>' +
-            '<td>' + escapeHtml(e.recipients) + '</td>' +
+            '<td>' + escapeHtml(e.sender || '—') + '</td>' +
+            '<td>' + recipients + '</td>' +
             '<td>' + escapeHtml(e.sentAt) + '</td>' +
             '<td>' + status + '</td>' +
             '<td>' + e.clickCount + '</td>' +

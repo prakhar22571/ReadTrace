@@ -1,7 +1,9 @@
 export type TrackedEmail = {
   trackingId: string;
   subject: string;
+  sender: string;
   recipients: string;
+  isReply: boolean;
   sentAt: string;
   openCount: number;
   lastOpenedAt: string | null;
@@ -10,7 +12,7 @@ export type TrackedEmail = {
 
 export type RegisterEmailMessage = {
   type: "REGISTER_EMAIL";
-  payload: { trackingId: string; subject: string; recipients: string };
+  payload: { trackingId: string; subject: string; sender: string; recipients: string; isReply: boolean };
 };
 
 export type GetEmailsMessage = { type: "GET_EMAILS" };

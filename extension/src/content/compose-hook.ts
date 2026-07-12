@@ -129,10 +129,12 @@ function handleSend(container: HTMLElement, body: HTMLElement): void {
   appendPixel(body, trackingId, baseUrl);
 
   const subject = extractSubject(container);
+  const sender = extractSender();
   const recipients = extractRecipients(container);
+  const isReply = !container.querySelector('input[name="subjectbox"]');
 
   chrome.runtime.sendMessage(
-    { type: "REGISTER_EMAIL", payload: { trackingId, subject, recipients } },
+    { type: "REGISTER_EMAIL", payload: { trackingId, subject, sender, recipients, isReply } },
     (_response: RegisterEmailResponse) => void chrome.runtime.lastError, // swallow "no receiver" noise
   );
 }
@@ -204,6 +206,17 @@ function appendPixel(body: HTMLElement, trackingId: string, baseUrl: string): vo
   img.height = 1;
   img.style.display = "none";
   body.appendChild(img);
+}
+
+function extractSender(): string {
+  // Gmail's account-switcher button always carries the signed-in address,
+  // e.g. aria-label="Google Account: Prakhar Rai  \n(prakhar.tools@gmail.com)".
+  // This doesn't account for a "Send mail as" alias picked in a multi-identity
+  // compose, which Gmail doesn't expose through a selector stable enough to
+  // rely on here.
+  const account = document.querySelector<HTMLElement>('a[aria-label^="Google Account:"]');
+  const match = account?.getAttribute("aria-label")?.match(/\(([^)]+@[^)]+)\)/);
+  return match?.[1] ?? "";
 }
 
 function extractSubject(container: HTMLElement): string {

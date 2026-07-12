@@ -55,7 +55,9 @@ dashboardRoute.get("/api/emails", async (c) => {
     `SELECT
        e.tracking_id AS trackingId,
        e.subject AS subject,
+       e.sender AS sender,
        e.recipients AS recipients,
+       e.is_reply AS isReply,
        e.sent_at AS sentAt,
        (SELECT COUNT(*) FROM opens o WHERE o.email_id = e.id) AS openCount,
        (SELECT MAX(o.opened_at) FROM opens o WHERE o.email_id = e.id) AS lastOpenedAt,

@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS emails (
   user_id INTEGER NOT NULL REFERENCES users(id),
   tracking_id TEXT NOT NULL UNIQUE,
   subject TEXT NOT NULL,
+  sender TEXT NOT NULL DEFAULT '',
   recipients TEXT NOT NULL,
+  is_reply INTEGER NOT NULL DEFAULT 0,
   sent_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

@@ -39,7 +39,9 @@ function render(emails: TrackedEmail[]): void {
 
     const meta = document.createElement("div");
     meta.className = "email-meta";
-    meta.textContent = `${email.recipients} · ${new Date(email.sentAt).toLocaleString()}`;
+    const from = email.sender ? `${email.sender} → ` : "";
+    const replyTag = email.isReply ? " (reply)" : "";
+    meta.textContent = `${from}${email.recipients}${replyTag} · ${new Date(email.sentAt).toLocaleString()}`;
 
     const status = document.createElement("div");
     const opened = email.openCount > 0;
