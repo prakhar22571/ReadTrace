@@ -11,32 +11,55 @@ const INJECTED_ATTR = "data-mt-injected";
  * deploys), so every selector below is written against ARIA labels /
  * contenteditable roles, which Gmail keeps stable for accessibility. This is
  * the same fragility real Mailtrack has to live with.
+ *
+ * We scan for message-body elements directly rather than for role="dialog"
+ * wrappers: that role only wraps the popup "new message" window. Gmail's
+ * inline reply box (expanded directly under a message in a thread, not
+ * popped out) has no dialog wrapper at all, so anchoring on the dialog role
+ * silently skipped every reply sent that way.
  */
 export function observeComposeWindows(): void {
   const observer = new MutationObserver(() => {
-    document.querySelectorAll<HTMLElement>('div[role="dialog"]').forEach((dialog) => {
-      if (dialog.hasAttribute(PROCESSED_ATTR)) return;
+    document
+      .querySelectorAll<HTMLElement>(
+        'div[aria-label="Message Body"][contenteditable="true"], div[g_editable="true"][contenteditable="true"]',
+      )
+      .forEach((body) => {
+        if (body.hasAttribute(PROCESSED_ATTR)) return;
 
-      const body = findMessageBody(dialog);
-      const sendButton = findSendButton(dialog);
-      if (!body || !sendButton) return;
+        const surface = findComposeSurface(body);
+        if (!surface) return;
 
-      dialog.setAttribute(PROCESSED_ATTR, "true");
-      setupComposeWindow(dialog, body, sendButton);
-    });
+        body.setAttribute(PROCESSED_ATTR, "true");
+        setupComposeWindow(surface.container, body, surface.sendButton);
+      });
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-function findMessageBody(dialog: HTMLElement): HTMLElement | null {
-  return dialog.querySelector<HTMLElement>(
-    'div[aria-label="Message Body"][contenteditable="true"], div[g_editable="true"][contenteditable="true"]',
-  );
+function findComposeSurface(
+  body: HTMLElement,
+): { container: HTMLElement; sendButton: HTMLElement } | null {
+  const dialog = body.closest<HTMLElement>('div[role="dialog"]');
+  if (dialog) {
+    const sendButton = findSendButton(dialog);
+    if (sendButton) return { container: dialog, sendButton };
+  }
+
+  // Inline replies aren't wrapped in role="dialog", so walk up a bounded
+  // number of ancestors looking for the nearest one containing a Send button.
+  let container = body.parentElement;
+  for (let i = 0; i < 20 && container; i++) {
+    const sendButton = findSendButton(container);
+    if (sendButton) return { container, sendButton };
+    container = container.parentElement;
+  }
+  return null;
 }
 
-function findSendButton(dialog: HTMLElement): HTMLElement | null {
-  const candidates = dialog.querySelectorAll<HTMLElement>('div[role="button"]');
+function findSendButton(container: HTMLElement): HTMLElement | null {
+  const candidates = container.querySelectorAll<HTMLElement>('div[role="button"]');
   for (const el of candidates) {
     const label = (el.getAttribute("aria-label") ?? el.getAttribute("data-tooltip") ?? "").toLowerCase();
     if (label.startsWith("send")) return el;
@@ -44,27 +67,27 @@ function findSendButton(dialog: HTMLElement): HTMLElement | null {
   return null;
 }
 
-function setupComposeWindow(dialog: HTMLElement, body: HTMLElement, sendButton: HTMLElement): void {
-  dialog.setAttribute(TRACKING_ON_ATTR, "true");
+function setupComposeWindow(container: HTMLElement, body: HTMLElement, sendButton: HTMLElement): void {
+  container.setAttribute(TRACKING_ON_ATTR, "true");
 
-  const toggle = createToggleButton(dialog);
+  const toggle = createToggleButton(container);
   sendButton.parentElement?.insertBefore(toggle, sendButton);
 
   // Capture phase so we mutate the body before Gmail's own listener (attached
   // during its own render) reads it and serializes the outgoing message.
-  sendButton.addEventListener("click", () => handleSend(dialog, body), true);
+  sendButton.addEventListener("click", () => handleSend(container, body), true);
   body.addEventListener(
     "keydown",
     (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        handleSend(dialog, body);
+        handleSend(container, body);
       }
     },
     true,
   );
 }
 
-function createToggleButton(dialog: HTMLElement): HTMLElement {
+function createToggleButton(container: HTMLElement): HTMLElement {
   const button = document.createElement("div");
   button.setAttribute("role", "button");
   button.title = "Tracking is ON for this email (click to toggle)";
@@ -79,8 +102,8 @@ function createToggleButton(dialog: HTMLElement): HTMLElement {
   button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const isOn = dialog.getAttribute(TRACKING_ON_ATTR) === "true";
-    dialog.setAttribute(TRACKING_ON_ATTR, String(!isOn));
+    const isOn = container.getAttribute(TRACKING_ON_ATTR) === "true";
+    container.setAttribute(TRACKING_ON_ATTR, String(!isOn));
     button.style.opacity = isOn ? "0.35" : "1";
     button.title = `Tracking is ${isOn ? "OFF" : "ON"} for this email (click to toggle)`;
   });
@@ -88,10 +111,10 @@ function createToggleButton(dialog: HTMLElement): HTMLElement {
   return button;
 }
 
-function handleSend(dialog: HTMLElement, body: HTMLElement): void {
-  if (dialog.getAttribute(TRACKING_ON_ATTR) !== "true") return;
-  if (dialog.getAttribute(INJECTED_ATTR) === "true") return; // click + keydown can both fire for one send
-  dialog.setAttribute(INJECTED_ATTR, "true");
+function handleSend(container: HTMLElement, body: HTMLElement): void {
+  if (container.getAttribute(TRACKING_ON_ATTR) !== "true") return;
+  if (container.getAttribute(INJECTED_ATTR) === "true") return; // click + keydown can both fire for one send
+  container.setAttribute(INJECTED_ATTR, "true");
 
   const trackingId = newTrackingId();
   const baseUrl = getCachedServerBaseUrl();
@@ -99,8 +122,8 @@ function handleSend(dialog: HTMLElement, body: HTMLElement): void {
   rewriteLinks(body, trackingId, baseUrl);
   appendPixel(body, trackingId, baseUrl);
 
-  const subject = extractSubject(dialog);
-  const recipients = extractRecipients(dialog);
+  const subject = extractSubject(container);
+  const recipients = extractRecipients(container);
 
   chrome.runtime.sendMessage(
     { type: "REGISTER_EMAIL", payload: { trackingId, subject, recipients } },
@@ -177,18 +200,24 @@ function appendPixel(body: HTMLElement, trackingId: string, baseUrl: string): vo
   body.appendChild(img);
 }
 
-function extractSubject(dialog: HTMLElement): string {
-  const input = dialog.querySelector<HTMLInputElement>('input[name="subjectbox"]');
-  return input?.value?.trim() || "(no subject)";
+function extractSubject(container: HTMLElement): string {
+  const input = container.querySelector<HTMLInputElement>('input[name="subjectbox"]');
+  if (input?.value?.trim()) return input.value.trim();
+
+  // Inline replies show no subject field (Gmail reuses the thread's
+  // subject). While a thread is open, document.title is
+  // "<subject> - <sender> - <account> - Gmail", so recover it from there.
+  const fromTitle = document.title.split(" - ")[0]?.trim();
+  return fromTitle && fromTitle !== "Gmail" ? fromTitle : "(no subject)";
 }
 
-function extractRecipients(dialog: HTMLElement): string {
-  const chips = Array.from(dialog.querySelectorAll<HTMLElement>("span[email]"))
+function extractRecipients(container: HTMLElement): string {
+  const chips = Array.from(container.querySelectorAll<HTMLElement>("span[email]"))
     .map((el) => el.getAttribute("email"))
     .filter((email): email is string => Boolean(email));
 
   if (chips.length > 0) return Array.from(new Set(chips)).join(", ");
 
-  const fallback = dialog.querySelector<HTMLTextAreaElement>('textarea[name="to"]');
+  const fallback = container.querySelector<HTMLTextAreaElement>('textarea[name="to"]');
   return fallback?.value?.trim() || "(unknown recipient)";
 }
