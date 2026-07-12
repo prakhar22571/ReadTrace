@@ -95,9 +95,15 @@ function createToggleButton(container: HTMLElement): HTMLElement {
   button.style.cursor = "pointer";
   button.style.display = "inline-flex";
   button.style.alignItems = "center";
-  button.style.padding = "0 8px";
+  button.style.padding = "0 6px";
   button.style.opacity = "1";
   button.style.userSelect = "none";
+  // Gmail's inline-reply toolbar is a tighter flex row than the popup
+  // compose one and was wrapping this onto its own line without these -
+  // pin it to its natural size instead of letting the row's flex-shrink
+  // squeeze or drop it.
+  button.style.flex = "0 0 auto";
+  button.style.whiteSpace = "nowrap";
 
   button.addEventListener("click", (event) => {
     event.preventDefault();
@@ -212,12 +218,25 @@ function extractSubject(container: HTMLElement): string {
 }
 
 function extractRecipients(container: HTMLElement): string {
-  const chips = Array.from(container.querySelectorAll<HTMLElement>("span[email]"))
-    .map((el) => el.getAttribute("email"))
-    .filter((email): email is string => Boolean(email));
-
-  if (chips.length > 0) return Array.from(new Set(chips)).join(", ");
+  const chips = collectRecipientChips(container);
+  if (chips.length > 0) return chips.join(", ");
 
   const fallback = container.querySelector<HTMLTextAreaElement>('textarea[name="to"]');
   return fallback?.value?.trim() || "(unknown recipient)";
+}
+
+function collectRecipientChips(container: HTMLElement): string[] {
+  // Popup compose keeps the recipient chips inside the same container as the
+  // Send button; Gmail's inline reply keeps its (collapsed) "to" header a
+  // few levels further up than where the Send-button search stops, so widen
+  // the search rather than assuming they're co-located.
+  let scope: HTMLElement | null = container;
+  for (let i = 0; i < 10 && scope; i++) {
+    const chips = Array.from(scope.querySelectorAll<HTMLElement>("span[email]"))
+      .map((el) => el.getAttribute("email"))
+      .filter((email): email is string => Boolean(email));
+    if (chips.length > 0) return Array.from(new Set(chips));
+    scope = scope.parentElement;
+  }
+  return [];
 }
