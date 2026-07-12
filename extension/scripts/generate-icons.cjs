@@ -1,5 +1,5 @@
-// One-off placeholder icon generator: solid-color square PNGs so the
-// extension has valid icon files without pulling in an image dependency.
+// Icon generator: draws a simple blue-square + white-checkmark logo (no
+// external image deps, since PNG is written by hand via zlib deflate).
 // Swap public/icons/*.png for real artwork whenever convenient.
 const fs = require("fs");
 const path = require("path");
@@ -34,7 +34,19 @@ function chunk(type, data) {
   return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
 }
 
-function makePng(size, [r, g, b, a]) {
+// Shortest distance from point (px, py) to segment (x1,y1)-(x2,y2).
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq === 0 ? 0 : ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx;
+  const cy = y1 + t * dy;
+  return Math.hypot(px - cx, py - cy);
+}
+
+function makePng(size, pixelFn) {
   const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
   const ihdr = Buffer.alloc(13);
@@ -52,6 +64,7 @@ function makePng(size, [r, g, b, a]) {
     const rowStart = y * (rowLen + 1);
     raw[rowStart] = 0; // no filter
     for (let x = 0; x < size; x++) {
+      const [r, g, b, a] = pixelFn(x, y);
       const px = rowStart + 1 + x * 4;
       raw[px] = r;
       raw[px + 1] = g;
@@ -64,12 +77,45 @@ function makePng(size, [r, g, b, a]) {
   return Buffer.concat([sig, chunk("IHDR", ihdr), chunk("IDAT", idat), chunk("IEND", Buffer.alloc(0))]);
 }
 
+const BLUE = [26, 115, 232, 255]; // #1a73e8, Gmail-ish blue
+const WHITE = [255, 255, 255, 255];
+
+function logoPixel(size) {
+  const n = size;
+  const corner = n * 0.18; // rounded-square corner radius
+  const strokeHalfWidth = Math.max(1, n * 0.09);
+
+  // Checkmark as two segments, in a square coordinate space of size n.
+  const p1 = [n * 0.22, n * 0.53];
+  const p2 = [n * 0.42, n * 0.74];
+  const p3 = [n * 0.79, n * 0.28];
+
+  return (x, y) => {
+    const cx = x + 0.5;
+    const cy = y + 0.5;
+
+    // Rounded-square clip: outside the rounded corners -> transparent.
+    const nearestCornerX = cx < corner ? corner : cx > n - corner ? n - corner : cx;
+    const nearestCornerY = cy < corner ? corner : cy > n - corner ? n - corner : cy;
+    const inCornerZone = (cx < corner || cx > n - corner) && (cy < corner || cy > n - corner);
+    if (inCornerZone && Math.hypot(cx - nearestCornerX, cy - nearestCornerY) > corner) {
+      return [0, 0, 0, 0];
+    }
+
+    const d1 = distToSegment(cx, cy, p1[0], p1[1], p2[0], p2[1]);
+    const d2 = distToSegment(cx, cy, p2[0], p2[1], p3[0], p3[1]);
+    if (Math.min(d1, d2) <= strokeHalfWidth) {
+      return WHITE;
+    }
+    return BLUE;
+  };
+}
+
 const outDir = path.join(__dirname, "..", "public", "icons");
 fs.mkdirSync(outDir, { recursive: true });
 
-const blue = [26, 115, 232, 255]; // #1a73e8, Gmail-ish blue
 for (const size of [16, 48, 128]) {
-  const png = makePng(size, blue);
+  const png = makePng(size, logoPixel(size));
   fs.writeFileSync(path.join(outDir, `icon${size}.png`), png);
   console.log(`wrote icon${size}.png`);
 }
