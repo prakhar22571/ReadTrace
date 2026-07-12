@@ -1,13 +1,14 @@
 # MailTrack (Free)
 
-A self-hosted, free clone of [Mailtrack.io](https://mailtrack.io): a Chrome
-extension that adds WhatsApp-style read receipts and link-click tracking to
-Gmail, backed by a Cloudflare Worker instead of a paid SaaS.
+Instead of paying for one of the Gmail read-receipt / link-tracking browser
+extensions out there, host your own for free. A Chrome extension adds
+WhatsApp-style read receipts and link-click tracking to Gmail, backed by a
+Cloudflare Worker instead of a paid SaaS subscription.
 
-It works the same way the real thing does: a content script silently appends
-an invisible tracking pixel to outgoing mail and rewrites links to route
-through a tracking redirect, and a backend logs opens/clicks against a
-per-email tracking ID.
+It works the way those paid extensions do under the hood: a content script
+silently appends an invisible tracking pixel to outgoing mail and rewrites
+links to route through a tracking redirect, and a backend logs opens/clicks
+against a per-email tracking ID.
 
 ## Project layout
 
@@ -196,7 +197,7 @@ cryptographically signed independently of the password itself.
   caches by URL. This means a second/third open of the same email is not
   reliably re-counted, and the logged IP is usually Google's proxy, not the
   recipient's. This is a limitation of *all* pixel-based Gmail trackers,
-  including the real Mailtrack - there's no full workaround, only mitigation.
+  including the paid ones - there's no full workaround, only mitigation.
 - **Inline badge matching is heuristic**, not exact: it matches Gmail list
   rows by subject-text substring rather than a stable message ID, since
   Gmail's DOM has no reliable public IDs to key off. Two unrelated threads

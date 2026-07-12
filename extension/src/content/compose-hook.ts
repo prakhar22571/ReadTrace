@@ -10,7 +10,7 @@ const INJECTED_ATTR = "data-mt-injected";
  * Gmail has no stable IDs or class names (they're minified and change across
  * deploys), so every selector below is written against ARIA labels /
  * contenteditable roles, which Gmail keeps stable for accessibility. This is
- * the same fragility real Mailtrack has to live with.
+ * the same fragility any paid extension doing this has to live with.
  *
  * We scan for message-body elements directly rather than for role="dialog"
  * wrappers: that role only wraps the popup "new message" window. Gmail's
