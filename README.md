@@ -1,4 +1,4 @@
-# MailTrack (Free)
+# ReadTrace (Free)
 
 Instead of paying for one of the Gmail read-receipt / link-tracking browser
 extensions out there, host your own for free. A Chrome extension adds
@@ -52,7 +52,7 @@ complete `wrangler login`?" below for an API-token alternative.
 Create your own D1 database:
 
 ```
-npx wrangler d1 create mailtrack
+npx wrangler d1 create readtrace
 ```
 
 This prints a `database_id`. **Open `server/wrangler.toml` and replace the
@@ -68,7 +68,7 @@ npm run deploy
 ```
 
 Wrangler prints your Worker's URL, e.g.
-`https://mailtrack-server.<your-subdomain>.workers.dev` - that's your
+`https://readtrace-server.<your-subdomain>.workers.dev` - that's your
 backend. Copy it, you'll need it for the extension.
 
 If deploy fails with "You need to register a workers.dev subdomain," go to

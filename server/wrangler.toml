@@ -1,8 +1,13 @@
-name = "mailtrack-server"
+name = "readtrace-server"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
 [[d1_databases]]
 binding = "DB"
+# Cloudflare's registered name for this D1 database is still "mailtrack"
+# (set at creation time via `wrangler d1 create` and not renameable) - this
+# field is only a local label, doesn't need to match for `wrangler deploy`
+# to bind correctly via database_id, but `wrangler d1 execute` by name still
+# needs the real one, which is why scripts in package.json use the id.
 database_name = "mailtrack"
 database_id = "e573da75-9ee0-45be-90d6-9087b091a86d"

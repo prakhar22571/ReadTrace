@@ -17,7 +17,7 @@ export function loginPage(error?: string): string {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>MailTrack Dashboard</title>
+<title>ReadTrace Dashboard</title>
 <style>
 ${SHARED_STYLE}
   .wrap { max-width: 360px; margin: 15vh auto 0; padding: 32px; }
@@ -35,7 +35,7 @@ ${SHARED_STYLE}
 </head>
 <body>
   <div class="wrap">
-    <h1>MailTrack Dashboard</h1>
+    <h1>ReadTrace Dashboard</h1>
     <form method="POST" action="/dashboard/login">
       <input type="password" name="password" placeholder="Password" autofocus required />
       <button type="submit">Log in</button>
@@ -51,7 +51,7 @@ export function dashboardPage(): string {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>MailTrack Dashboard</title>
+<title>ReadTrace Dashboard</title>
 <style>
 ${SHARED_STYLE}
   header {
@@ -77,7 +77,7 @@ ${SHARED_STYLE}
 </head>
 <body>
   <header>
-    <h1>MailTrack Dashboard</h1>
+    <h1>ReadTrace Dashboard</h1>
     <form method="POST" action="/dashboard/logout"><button class="logout" type="submit">Log out</button></form>
   </header>
   <div class="stats" id="stats"></div>

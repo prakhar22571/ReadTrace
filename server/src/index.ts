@@ -21,7 +21,7 @@ app.use(
   }),
 );
 
-app.get("/", (c) => c.text("mailtrack-server ok"));
+app.get("/", (c) => c.text("readtrace-server ok"));
 
 app.route("/api/emails", emailsRoute);
 app.route("/p", pixelRoute);
