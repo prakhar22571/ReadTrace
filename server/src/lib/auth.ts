@@ -1,37 +1,22 @@
 import type { Context, Next } from "hono";
 import type { Env, Variables } from "../types";
+import { constantTimeEqual } from "./session";
 
 /**
- * Resolves the caller's user row from the X-Api-Key header, creating it on
- * first sight. There's no signup flow: the extension mints a random key on
- * install and this endpoint is what turns it into a real user.
+ * This project is single-owner, so there's no per-user account model - the
+ * X-Api-Key header just has to match the API_KEY Worker secret, the same
+ * pattern as the dashboard password.
  */
-export async function requireUser(
+export async function requireApiKey(
   c: Context<{ Bindings: Env; Variables: Variables }>,
   next: Next,
 ) {
-  const apiKey = c.req.header("X-Api-Key");
-  if (!apiKey || apiKey.length < 16) {
+  const apiKey = c.req.header("X-Api-Key") ?? "";
+  const ok = await constantTimeEqual(apiKey, c.env.API_KEY);
+  if (!ok) {
     return c.json({ error: "missing or invalid X-Api-Key header" }, 401);
   }
 
-  await c.env.DB.prepare(
-    "INSERT OR IGNORE INTO users (api_key) VALUES (?)",
-  )
-    .bind(apiKey)
-    .run();
-
-  const row = await c.env.DB.prepare(
-    "SELECT id FROM users WHERE api_key = ?",
-  )
-    .bind(apiKey)
-    .first<{ id: number }>();
-
-  if (!row) {
-    return c.json({ error: "failed to resolve user" }, 500);
-  }
-
-  c.set("userId", row.id);
   await next();
 }
 

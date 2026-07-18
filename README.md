@@ -75,19 +75,24 @@ If deploy fails with "You need to register a workers.dev subdomain," go to
 the Cloudflare dashboard -> Workers & Pages -> your worker -> **Domains**
 tab, and toggle the `workers.dev` URL on.
 
-#### Set the dashboard password
+#### Set the dashboard password and API key
 
 ```
 npx wrangler secret put DASHBOARD_PASSWORD
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put API_KEY
 ```
 
 Each command prompts you to type a value (hidden input). `DASHBOARD_PASSWORD`
 is what you'll type to log into `/dashboard` later - pick something you'll
 remember or save in a password manager. `SESSION_SECRET` is only used
 internally to sign login sessions; any random string works and you'll never
-need to type it again. Both are stored as encrypted Cloudflare secrets -
-never written to a file, never committed anywhere.
+need to type it again. `API_KEY` is what authenticates the extension to this
+backend - this project is meant for a single owner, so it's one shared secret
+rather than a signup flow; any random string works, but you'll need to paste
+the same value into the extension's Settings page in step 3. All three are
+stored as encrypted Cloudflare secrets - never written to a file, never
+committed anywhere.
 
 #### Can't complete `wrangler login`?
 
@@ -112,7 +117,14 @@ each other), authenticate with an API token instead:
 
 For local development instead of deploying: `npm run db:migrate:local &&
 npm run dev` (serves on `http://127.0.0.1:8787`, which is the extension's
-default server URL).
+default server URL). `wrangler secret put` only writes to your deployed
+Worker, so local dev needs its own copy of the same three values in a
+`server/.dev.vars` file (already gitignored), one `KEY=value` per line:
+```
+DASHBOARD_PASSWORD=whatever-you-want-locally
+SESSION_SECRET=whatever-you-want-locally
+API_KEY=whatever-you-want-locally
+```
 
 ### 3. Build and load the extension
 
@@ -126,7 +138,8 @@ Then in Chrome/Brave: go to `chrome://extensions`, enable **Developer mode**
 (top-right toggle), click **Load unpacked**, and select `extension/dist`.
 
 Click the extension icon in your toolbar -> **Settings**, and set **Backend
-server URL** to the Worker URL from step 2.
+server URL** to the Worker URL from step 2, and **API key** to the same value
+you set for the `API_KEY` secret above.
 
 ### 4. Use it
 

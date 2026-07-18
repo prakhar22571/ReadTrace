@@ -15,14 +15,11 @@ export async function getServerBaseUrl(): Promise<string> {
     : DEFAULT_SERVER_BASE_URL;
 }
 
+/** Must match the API_KEY secret set on the backend (`wrangler secret put API_KEY`); set in Settings. */
 export async function getApiKey(): Promise<string> {
   const data = await chrome.storage.sync.get(STORAGE_KEYS.apiKey);
-  let key = data[STORAGE_KEYS.apiKey];
-  if (typeof key !== "string" || key.length === 0) {
-    key = crypto.randomUUID().replace(/-/g, "");
-    await chrome.storage.sync.set({ [STORAGE_KEYS.apiKey]: key });
-  }
-  return key;
+  const key = data[STORAGE_KEYS.apiKey];
+  return typeof key === "string" ? key : "";
 }
 
 export async function isTrackingEnabledByDefault(): Promise<boolean> {

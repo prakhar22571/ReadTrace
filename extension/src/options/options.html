@@ -54,6 +54,10 @@
     <input type="text" id="server-url" placeholder="https://readtrace-server.<you>.workers.dev" />
     <div class="hint">The Cloudflare Worker URL from `wrangler deploy` (or your local dev URL while testing).</div>
 
+    <label for="api-key">API key</label>
+    <input type="text" id="api-key" placeholder="Same value as the API_KEY secret on the backend" />
+    <div class="hint">Must match the API_KEY secret set via `wrangler secret put API_KEY` on the backend - any value works as long as both sides agree.</div>
+
     <div class="row">
       <input type="checkbox" id="tracking-default" />
       <label for="tracking-default" style="margin: 0">Enable tracking by default on new emails</label>

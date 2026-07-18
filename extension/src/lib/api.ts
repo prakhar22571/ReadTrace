@@ -12,6 +12,19 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
   });
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const REGISTER_RETRY_DELAYS_MS = [500, 1500];
+
+/**
+ * The pixel/links are already baked into the email by the time this fires,
+ * so a transient failure here (cold-start hiccup, dropped connection) would
+ * otherwise strand the email untracked with no way to retry later. Only
+ * retries on network failures / 5xx - a 4xx (e.g. bad API key) won't be
+ * fixed by trying again.
+ */
 export async function registerEmail(payload: {
   trackingId: string;
   subject: string;
@@ -19,14 +32,29 @@ export async function registerEmail(payload: {
   recipients: string;
   isReply: boolean;
 }): Promise<void> {
-  const res = await authedFetch("/api/emails", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(`registerEmail failed: ${res.status}`);
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= REGISTER_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) await sleep(REGISTER_RETRY_DELAYS_MS[attempt - 1]);
+
+    let res: Response;
+    try {
+      res = await authedFetch("/api/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      lastError = err; // network failure - worth retrying
+      continue;
+    }
+
+    if (res.ok) return;
+    if (res.status < 500) throw new Error(`registerEmail failed: ${res.status}`); // not retryable, bail now
+    lastError = new Error(`registerEmail failed: ${res.status}`); // 5xx - worth retrying
   }
+
+  throw lastError;
 }
 
 export async function fetchTrackedEmails(): Promise<TrackedEmail[]> {

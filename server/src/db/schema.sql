@@ -1,12 +1,5 @@
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  api_key TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS emails (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL REFERENCES users(id),
   tracking_id TEXT NOT NULL UNIQUE,
   subject TEXT NOT NULL,
   sender TEXT NOT NULL DEFAULT '',
@@ -15,7 +8,6 @@ CREATE TABLE IF NOT EXISTS emails (
   sent_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_emails_user_id ON emails(user_id);
 CREATE INDEX IF NOT EXISTS idx_emails_tracking_id ON emails(tracking_id);
 
 CREATE TABLE IF NOT EXISTS opens (

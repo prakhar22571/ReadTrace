@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
-import { requireUser } from "../lib/auth";
+import { requireApiKey } from "../lib/auth";
 
 export const emailsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-emailsRoute.use("*", requireUser);
+emailsRoute.use("*", requireApiKey);
 
 emailsRoute.post("/", async (c) => {
-  const userId = c.get("userId");
   const body = await c.req.json<{
     trackingId?: string;
     subject?: string;
@@ -24,19 +23,17 @@ emailsRoute.post("/", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `INSERT INTO emails (user_id, tracking_id, subject, sender, recipients, is_reply)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO emails (tracking_id, subject, sender, recipients, is_reply)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(tracking_id) DO NOTHING`,
   )
-    .bind(userId, body.trackingId, body.subject, body.sender ?? "", body.recipients, body.isReply ? 1 : 0)
+    .bind(body.trackingId, body.subject, body.sender ?? "", body.recipients, body.isReply ? 1 : 0)
     .run();
 
   return c.json({ ok: true, trackingId: body.trackingId }, 201);
 });
 
 emailsRoute.get("/", async (c) => {
-  const userId = c.get("userId");
-
   const { results } = await c.env.DB.prepare(
     `SELECT
        e.tracking_id AS trackingId,
@@ -49,12 +46,9 @@ emailsRoute.get("/", async (c) => {
        (SELECT MAX(o.opened_at) FROM opens o WHERE o.email_id = e.id) AS lastOpenedAt,
        (SELECT COUNT(*) FROM clicks cl WHERE cl.email_id = e.id) AS clickCount
      FROM emails e
-     WHERE e.user_id = ?
      ORDER BY e.sent_at DESC
      LIMIT 200`,
-  )
-    .bind(userId)
-    .all();
+  ).all();
 
   return c.json({ emails: results });
 });
